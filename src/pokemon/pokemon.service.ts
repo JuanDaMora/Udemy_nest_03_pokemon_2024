@@ -29,20 +29,7 @@ export class PokemonService {
       const pokemon = await this.pokemonModel.create(createPokemonDto);
       return pokemon;
     } catch (err) {
-      if (err.code === 11000) {
-        /**
-         * If the pokemon already exists in the db, throw a BadRequestException
-         */
-        throw new BadRequestException(
-          `Pokemon already exists in db ${JSON.stringify(err.keyValue)}`,
-        );
-      }
-      /**
-       * If there is an error creating the pokemon, throw an InternalServerErrorException
-       */
-      throw new InternalServerErrorException(
-        "Cant't create pokemon - Check the logs",
-      );
+      this.handleException(err);
     }
   }
 
@@ -54,6 +41,7 @@ export class PokemonService {
     let pokemon: Pokemon;
 
     if (!isNaN(+term)) {
+      // no: is a property of the pokemon entity
       pokemon = await this.pokemonModel.findOne({ no: term });
     } else if (isValidObjectId(term)) {
       //MongoId
@@ -72,11 +60,47 @@ export class PokemonService {
     return pokemon;
   }
 
-  update(id: number, updatePokemonDto: UpdatePokemonDto) {
-    return `This action updates a #${id} pokemon`;
+  async update(term: string, updatePokemonDto: UpdatePokemonDto) {
+    const pokemon = await this.findOne(term);
+    if (updatePokemonDto.name) {
+      updatePokemonDto.name = updatePokemonDto.name.toLowerCase().trim();
+    }
+
+    try {
+      /**
+       * Update the pokemon
+       */
+      await pokemon.updateOne(updatePokemonDto, { new: true });
+
+      return { ...pokemon.toJSON(), ...updatePokemonDto };
+    } catch (err) {
+      this.handleException(err);
+    }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} pokemon`;
+  async remove(_id: string) {
+    // const pokemon = await this.findOne(id);
+    // await pokemon.deleteOne();
+    const { deletedCount } = await this.pokemonModel.deleteOne({ _id });
+    if (deletedCount === 0) {
+      throw new NotFoundException(`Pokemon with id "${_id}" not found`);
+    }
+    return;
+  }
+
+  private handleException(error: any) {
+    if (error.code === 11000) {
+      /**
+       * If the pokemon already exists in the db, throw a BadRequestException
+       */
+      throw new BadRequestException(
+        `Pokemon already exists in db ${JSON.stringify(error.keyValue)}`,
+      );
+    } /**
+     * If there is an error creating the pokemon, throw an InternalServerErrorException
+     */
+    throw new InternalServerErrorException(
+      "Cant't create pokemon - Check the logs",
+    );
   }
 }
