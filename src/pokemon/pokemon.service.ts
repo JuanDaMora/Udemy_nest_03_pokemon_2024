@@ -61,7 +61,13 @@ export class PokemonService {
   }
 
   async update(term: string, updatePokemonDto: UpdatePokemonDto) {
+    /**
+     * find the pokemon if it exists
+     */
     const pokemon = await this.findOne(term);
+    /**
+     * Lowercase the name and trim it
+     */
     if (updatePokemonDto.name) {
       updatePokemonDto.name = updatePokemonDto.name.toLowerCase().trim();
     }
